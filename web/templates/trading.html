@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>交易看板（HK Paper）</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin: 16px; }
+    h1 { font-size: 20px; }
+    section { margin-bottom: 16px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 6px 8px; }
+    th { background: #f5f5f5; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .card { border: 1px solid #ddd; padding: 12px; border-radius: 6px; flex: 1; min-width: 320px; }
+    button { padding: 6px 10px; }
+    input, select { padding: 6px; }
+  </style>
+</head>
+<body>
+  <h1>交易看板（HK Paper）</h1>
+
+  <section class="row">
+    <div class="card">
+      <h3>调度器</h3>
+      <div>状态：<span id="sched-status">-</span></div>
+      <div>上次：<span id="sched-last">-</span></div>
+      <div>下次：<span id="sched-next">-</span></div>
+      <div style="margin-top:8px;">
+        <button onclick="startScheduler()">启动（1分钟）</button>
+        <button onclick="stopScheduler()">停止</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>组合概览</h3>
+      <div>净资产：<b id="pf-total">-</b></div>
+      <div>现金：<span id="pf-cash">-</span></div>
+      <div>持仓市值：<span id="pf-equity">-</span></div>
+      <div>当日PnL：<span id="pf-daily">-</span></div>
+      <div>累计PnL：<span id="pf-cum">-</span></div>
+    </div>
+
+    <div class="card">
+      <h3>下单</h3>
+      <form id="order-form">
+        <div>
+          <label>代码：</label>
+          <input id="symbol" value="0700.HK" />
+        </div>
+        <div>
+          <label>方向：</label>
+          <select id="side"><option>BUY</option><option>SELL</option></select>
+        </div>
+        <div>
+          <label>价格：</label>
+          <input id="price" type="number" step="0.001" value="300" />
+        </div>
+        <div>
+          <label>数量：</label>
+          <input id="qty" type="number" value="100" />
+        </div>
+        <div style="margin-top:8px;">
+          <button type="submit">提交限价单</button>
+        </div>
+      </form>
+      <div id="order-result" style="margin-top:6px;color:#0a0;"></div>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="card">
+      <h3>持仓</h3>
+      <table id="positions"><thead><tr><th>代码</th><th>数量</th><th>均价</th><th>市场</th><th>更新时间</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h3>订单（最近100条）</h3>
+      <table id="orders"><thead><tr><th>ID</th><th>代码</th><th>方向</th><th>类型</th><th>价格</th><th>数量</th><th>状态</th><th>成交均价</th><th>创建时间</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <script>
+    async function fetchJSON(url, opts) {
+      const res = await fetch(url, opts);
+      return res.json();
+    }
+    async function refreshScheduler() {
+      try {
+        const j = await fetchJSON('/api/scheduler/status');
+        const d = j.data || {};
+        document.getElementById('sched-status').textContent = d.running ? '运行中' : '已停止';
+        document.getElementById('sched-last').textContent = d.last_run_at || '-';
+        document.getElementById('sched-next').textContent = d.next_run_at || '-';
+      } catch (e) { console.error(e); }
+    }
+    async function refreshPortfolio() {
+      try {
+        const j = await fetchJSON('/api/portfolio/overview');
+        const d = j.data || {};
+        const fmt = (x) => (x===undefined||x===null) ? '-' : Number(x).toFixed(2);
+        document.getElementById('pf-total').textContent = fmt(d.total_value);
+        document.getElementById('pf-cash').textContent = fmt(d.cash);
+        document.getElementById('pf-equity').textContent = fmt(d.equity);
+        document.getElementById('pf-daily').textContent = fmt(d.daily_pnl);
+        document.getElementById('pf-cum').textContent = fmt(d.cumulative_pnl);
+      } catch (e) { console.error(e); }
+    }
+    async function startScheduler() {
+      await fetchJSON('/api/scheduler/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({interval_sec:60})});
+      refreshScheduler();
+    }
+    async function stopScheduler() {
+      await fetchJSON('/api/scheduler/stop', {method:'POST'});
+      refreshScheduler();
+    }
+    async function refreshPositions() {
+      try {
+        const j = await fetchJSON('/api/positions');
+        const tb = document.querySelector('#positions tbody');
+        tb.innerHTML='';
+        (j.data||[]).forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${r.symbol}</td><td>${r.quantity}</td><td>${(r.avg_price||0).toFixed(3)}</td><td>${r.market}</td><td>${r.updated_at||''}</td>`;
+          tb.appendChild(tr);
+        });
+      } catch(e){console.error(e)}
+    }
+    async function refreshOrders() {
+      try {
+        const j = await fetchJSON('/api/orders');
+        const tb = document.querySelector('#orders tbody');
+        tb.innerHTML='';
+        (j.data||[]).forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${r.id}</td><td>${r.symbol}</td><td>${r.side}</td><td>${r.type}</td><td>${r.price||''}</td><td>${r.quantity}</td><td>${r.status}</td><td>${r.avg_fill_price||''}</td><td>${r.created_at||''}</td>`;
+          tb.appendChild(tr);
+        });
+      } catch(e){console.error(e)}
+    }
+
+    document.getElementById('order-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        symbol: document.getElementById('symbol').value.trim(),
+        side: document.getElementById('side').value.trim(),
+        order_type: 'LIMIT',
+        price: parseFloat(document.getElementById('price').value),
+        quantity: parseInt(document.getElementById('qty').value, 10)
+      };
+      const j = await fetchJSON('/api/trading/order', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      document.getElementById('order-result').textContent = j.success ? '下单成功' : ('失败：' + (j.error||''));
+      refreshPositions();
+      refreshOrders();
+    });
+
+    function loop(){
+      refreshScheduler();
+      refreshPortfolio();
+      refreshPositions();
+      refreshOrders();
+      setTimeout(loop, 5000);
+    }
+    loop();
+  </script>
+</body>
+</html>
+

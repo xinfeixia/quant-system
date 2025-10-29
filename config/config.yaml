@@ -1,0 +1,316 @@
+# 长桥证券量化交易系统配置文件
+
+# 数据库配置
+database:
+  type: sqlite  # sqlite 或 postgresql
+  sqlite:
+    # 使用绝对路径，确保所有脚本都使用同一个数据库（包含最新数据）
+    path: D:/xiaohongshu/longport-quant-system/data/longport_quant.db
+  postgresql:
+    host: localhost
+    port: 5432
+    database: longport_quant
+    user: postgres
+    password: your_password
+
+# 数据采集配置
+data_collection:
+  # 支持的市场
+  markets:
+    - HK  # 港股
+    - US  # 美股
+    - CN  # A股（如果有权限）
+  
+  # 更新间隔（秒）
+  update_interval: 3600
+  
+  # 批量获取数量
+  batch_size: 50
+  
+  # 历史数据天数
+  history_days: 365
+  
+  # K线周期
+  periods:
+    - day    # 日线
+    - week   # 周线
+    - month  # 月线
+  
+  # 实时行情配置
+  realtime:
+    enabled: false  # 是否启用实时行情
+    reconnect_interval: 5  # 重连间隔（秒）
+
+# 技术分析配置
+analysis:
+  # 技术指标
+  technical_indicators:
+    # 趋势指标
+    - name: MA
+      params:
+        periods: [5, 10, 20, 60]
+    - name: EMA
+      params:
+        periods: [12, 26]
+    - name: MACD
+      params:
+        fast: 12
+        slow: 26
+        signal: 9
+    
+    # 震荡指标
+    - name: RSI
+      params:
+        period: 14
+    - name: KDJ
+      params:
+        n: 9
+        m1: 3
+        m2: 3
+    - name: CCI
+      params:
+        period: 14
+    
+    # 波动指标
+    - name: BOLL
+      params:
+        period: 20
+        std: 2
+    - name: ATR
+      params:
+        period: 14
+    
+    # 成交量指标
+    - name: OBV
+    - name: VOLUME_MA
+      params:
+        periods: [5, 10]
+  
+  # 评分权重
+  scoring_weights:
+    technical_indicators: 0.30  # 技术指标
+    volume_analysis: 0.25       # 量价分析
+    trend_analysis: 0.25        # 趋势分析
+    pattern_recognition: 0.20   # 形态识别
+  
+  # 形态识别
+  pattern_recognition:
+    enabled: true
+    sensitivity: 0.7  # 识别灵敏度 (0-1)
+    patterns:
+      - hammer          # 锤子线
+      - shooting_star   # 射击之星
+      - engulfing       # 吞没形态
+      - doji            # 十字星
+      - morning_star    # 早晨之星
+      - evening_star    # 黄昏之星
+
+# 选股配置
+stock_selection:
+  # 选股数量
+  top_n: 50
+  
+  # 最小评分
+  min_score: 5.0
+  
+  # 过滤条件
+  filters:
+    min_price: 1.0        # 最低价格
+    max_price: 10000.0    # 最高价格
+    min_volume: 100000    # 最小成交量
+    min_market_cap: 0     # 最小市值（亿）
+  
+  # 排除条件
+  exclude:
+    st_stocks: true       # 排除ST股票
+    suspended: true       # 排除停牌股票
+
+# 回测配置
+backtest:
+  # 初始资金
+  initial_capital: 1000000
+  
+  # 交易成本
+  commission: 0.0003  # 手续费率 (0.03%)
+  slippage: 0.001     # 滑点 (0.1%)
+  
+  # 回测时间范围
+  start_date: "2024-01-01"
+  end_date: "2024-12-31"
+  
+  # 策略参数
+  strategy:
+    # 持仓天数
+    hold_days: 7
+    
+    # 止损止盈
+    stop_loss: -0.10    # -10%
+    take_profit: 0.20   # +20%
+    
+    # 仓位管理
+    max_positions: 10   # 最大持仓数
+    position_size: 0.1  # 单个仓位占比 (10%)
+
+# Web界面配置
+web:
+  host: 0.0.0.0
+  port: 5000
+  debug: false
+  secret_key: "your-secret-key-change-this-in-production"
+  
+  # 分页配置
+  pagination:
+    per_page: 20
+  
+  # 缓存配置
+  cache:
+    enabled: true
+    timeout: 300  # 缓存时间（秒）
+
+# 日志配置
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
+  
+  # 日志文件
+  file:
+    enabled: true
+    path: logs/longport_quant.log
+    rotation: "100 MB"  # 日志轮转大小
+    retention: "30 days"  # 保留时间
+  
+  # 控制台输出
+  console:
+    enabled: true
+    colorize: true
+
+# 调度任务配置
+scheduler:
+  enabled: false
+  
+  tasks:
+    # 更新股票列表
+    - name: update_stock_list
+      schedule: "0 0 * * *"  # 每天0点
+      enabled: true
+    
+    # 更新历史数据
+    - name: update_historical_data
+      schedule: "0 1 * * *"  # 每天1点
+      enabled: true
+    
+    # 运行选股分析
+    - name: run_stock_selection
+      schedule: "0 16 * * 1-5"  # 工作日16点
+      enabled: true
+    
+    # 生成分析报告
+    - name: generate_report
+      schedule: "0 17 * * 1-5"  # 工作日17点
+      enabled: true
+
+# 通知配置
+notification:
+  enabled: false
+
+  # 邮件通知
+  email:
+    enabled: false
+    smtp_server: smtp.gmail.com
+    smtp_port: 587
+    username: your_email@gmail.com
+    password: your_password
+    from_addr: your_email@gmail.com
+    to_addrs:
+      - 17551016918@163.com
+
+  # 企业微信通知
+  wechat:
+    enabled: false
+    webhook_url: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your_key
+
+# 资金流入监控配置
+money_flow_monitor:
+  # 是否启用监控
+  enabled: true
+
+  # 监控间隔（秒）
+  interval: 60
+
+  # 回溯时间（分钟）- 用于计算平均成交量/成交额
+  lookback_minutes: 30
+
+  # 告警阈值
+  volume_ratio_threshold: 3.0      # 成交量倍数阈值（当前成交量/平均成交量）
+  turnover_ratio_threshold: 3.0    # 成交额倍数阈值（当前成交额/平均成交额）
+  price_change_threshold: 0.05     # 价格变动阈值（5%）
+
+  # 自动交易配置
+  auto_trade: true                # 是否自动生成买入信号
+  send_email: false                # 是否发送邮件通知
+
+  # 监控时间段（仅在交易时间内监控）
+  trading_hours:
+    start: "09:30"
+    end: "15:00"
+
+# 自动交易配置
+auto_trading:
+  # 是否启用自动交易
+  enabled: true
+
+  # 交易引擎类型（local_paper/longport）
+  engine_type: local_paper
+
+  # 执行间隔（秒）
+  execution_interval: 30
+
+  # 止盈止损配置
+  take_profit:
+    enabled: true
+    target_profit_pct: 0.10        # 目标利润（10%）
+
+  stop_loss:
+    enabled: true
+    stop_loss_pct: -0.05           # 止损比例（-5%）
+
+  trailing_stop:
+    enabled: false
+    trailing_stop_pct: 0.03        # 移动止损比例（3%）
+
+# 性能配置
+performance:
+  # 多线程
+  max_workers: 4
+
+  # 数据库连接池
+  db_pool_size: 10
+  db_max_overflow: 20
+
+  # 请求超时
+  request_timeout: 30  # 秒
+
+# 交易配置
+trading:
+  # 交易模式
+  # local_paper: 本地模拟交易（即刻撮合，无API调用）
+  # longport_paper: LongPort模拟账号（真实模拟环境，需要API）
+  # longport_live: LongPort实盘交易（真实资金，谨慎使用）
+  mode: longport_paper
+
+  # 风控参数
+  risk:
+    max_per_position: 0.05   # 单票最大仓位 5%
+    max_gross: 0.80          # 总仓位上限 80%
+    default_slippage: 0.003  # 默认滑点 0.3%
+    initial_cash: 1000000.0  # 初始资金
+
+  # LongPort 交易配置（仅在 longport_paper 或 longport_live 模式下生效）
+  longport:
+    # 订单同步间隔（秒）
+    order_sync_interval: 5
+    # 持仓同步间隔（秒）
+    position_sync_interval: 10
+    # 订单超时时间（秒）
+    order_timeout: 60
+

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>选股结果 - 长桥量化系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card .label {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            color: #333;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .controls button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+
+        .controls button:hover {
+            transform: translateY(-2px);
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8f9fa;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+
+        .rank {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .rank-1 { color: #FFD700; font-size: 18px; }
+        .rank-2 { color: #C0C0C0; font-size: 17px; }
+        .rank-3 { color: #CD7F32; font-size: 16px; }
+
+        .symbol {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .score {
+            font-weight: bold;
+        }
+
+        .score-high { color: #28a745; }
+        .score-medium { color: #ffc107; }
+        .score-low { color: #dc3545; }
+
+        .score-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .score-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-excellent { background: #d4edda; color: #155724; }
+        .badge-good { background: #d1ecf1; color: #0c5460; }
+        .badge-average { background: #fff3cd; color: #856404; }
+        /* 更紧凑的操作按钮样式 */
+        .action-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+        .action-buttons button { padding: 6px 10px; font-size: 12px; border-radius: 6px; }
+        /* 小屏隐藏部分列，保留关键信息与操作 */
+        @media (max-width: 900px) {
+            .col-hide-sm { display: none; }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="pageTitle">🎯 智能选股结果</h1>
+            <p class="subtitle">基于多维度评分的量化选股系统</p>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="label">总股票数</div>
+                <div class="value" id="totalStocks">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">平均分数</div>
+                <div class="value" id="avgScore">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">最高分</div>
+                <div class="value" id="maxScore">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">选股日期</div>
+                <div class="value" id="selectionDate">-</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="switchMarket('HK')">🇭🇰 港股</button>
+            <button onclick="switchMarket('US')">🇺🇸 美股</button>
+            <button onclick="switchMarket('CN')">🇨🇳 A股</button>
+            <button onclick="loadSelections()">🔄 刷新数据</button>
+            <button onclick="window.location.href='/'">🏠 返回首页</button>
+            <button onclick="window.location.href='/kline'">📈 查看K线</button>
+            <button onclick="window.location.href='/compare'">📊 股票对比</button>
+            <button onclick="exportToCSV()">📥 导出CSV</button>
+            <span style="margin-left:12px;">默认点击行为:</span>
+            <select id="defaultActionSelect" onchange="setDefaultAction(this.value)">
+                <option value="kline">K线</option>
+                <option value="signals">买卖信号</option>
+            </select>
+        </div>
+
+        <div id="errorMessage"></div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>代码</th>
+                        <th>名称</th>
+                        <th>总分</th>
+                        <th class="col-hide-sm">技术指标</th>
+                        <th class="col-hide-sm">量价分析</th>
+                        <th class="col-hide-sm">趋势分析</th>
+                        <th class="col-hide-sm">形态识别</th>
+                        <th>最新价</th>
+                        <th class="col-hide-sm">评级</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="11" class="loading">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 获取URL参数
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // 获取市场参数（默认HK）
+        const market = getUrlParameter('market') || 'HK';
+
+        // 加载选股结果
+        async function loadSelections() {
+            try {
+                document.getElementById('errorMessage').innerHTML = '';
+                document.getElementById('tableBody').innerHTML = '<tr><td colspan="11" class="loading">加载中...</td></tr>';
+
+                const response = await fetch(`/api/selections?market=${market}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    showError(result.error || '加载失败');
+                    return;
+                }
+
+                const selections = result.data.selections;
+
+                if (!selections || selections.length === 0) {
+                    document.getElementById('tableBody').innerHTML = '<tr><td colspan="11" class="loading">暂无选股数据</td></tr>';
+                    return;
+                }
+
+                // 更新统计
+                updateStats(selections);
+
+                // 渲染表格
+                renderTable(selections);
+
+            } catch (error) {
+                showError('加载失败: ' + error.message);
+            }
+        }
+
+        // 更新统计信息
+        function updateStats(selections) {
+            const totalStocks = selections.length;
+            const avgScore = (selections.reduce((sum, s) => sum + s.total_score, 0) / totalStocks).toFixed(1);
+            const maxScore = Math.max(...selections.map(s => s.total_score)).toFixed(1);
+            const selectionDate = selections[0]?.selection_date || '-';
+
+            document.getElementById('totalStocks').textContent = totalStocks;
+            document.getElementById('avgScore').textContent = avgScore;
+            document.getElementById('maxScore').textContent = maxScore;
+            document.getElementById('selectionDate').textContent = selectionDate;
+        }
+
+        // 渲染表格
+        function renderTable(selections) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            selections.forEach((stock, index) => {
+                const row = document.createElement('tr');
+                row.onclick = () => onRowClick(stock.symbol);
+
+                // 排名
+                const rankClass = index < 3 ? `rank-${index + 1}` : 'rank';
+                const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+
+                // 总分颜色
+                const scoreClass = stock.total_score >= 70 ? 'score-high' :
+                                  stock.total_score >= 50 ? 'score-medium' : 'score-low';
+
+                // 评级
+                const rating = stock.total_score >= 80 ? '优秀' :
+                              stock.total_score >= 70 ? '良好' :
+                              stock.total_score >= 60 ? '中等' : '一般';
+                const ratingClass = stock.total_score >= 80 ? 'badge-excellent' :
+                                   stock.total_score >= 70 ? 'badge-good' : 'badge-average';
+
+                row.innerHTML = `
+                    <td class="${rankClass}">${rankIcon} ${stock.rank}</td>
+                    <td class="symbol">${stock.symbol}</td>
+                    <td>${stock.name}</td>
+                    <td>
+                        <div class="${scoreClass} score">${stock.total_score.toFixed(1)}</div>
+                        <div class="score-bar">
+                            <div class="score-bar-fill" style="width: ${stock.total_score}%"></div>
+                        </div>
+                    </td>
+                    <td class="col-hide-sm">${stock.technical_score.toFixed(1)}</td>
+                    <td class="col-hide-sm">${stock.volume_score.toFixed(1)}</td>
+                    <td class="col-hide-sm">${stock.trend_score.toFixed(1)}</td>
+                    <td class="col-hide-sm">${stock.pattern_score.toFixed(1)}</td>
+                    <td>${stock.latest_price ? stock.latest_price.toFixed(2) : '-'}</td>
+                    <td class="col-hide-sm"><span class="badge ${ratingClass}">${rating}</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button onclick="event.stopPropagation(); rememberScroll(); window.location.href = '/trading-signals?symbol=${stock.symbol}'">买卖信号</button>
+                            <button onclick="event.stopPropagation(); rememberScroll(); window.location.href = '/kline?symbol=${stock.symbol}'">K线</button>
+                        </div>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+        }
+
+        // 查看K线
+        function viewKline(symbol) {
+            // 按住Ctrl键点击查看买卖信号，否则查看K线
+            if (event.ctrlKey || event.metaKey) {
+                window.location.href = `/trading-signals?symbol=${symbol}`;
+            } else {
+                window.location.href = `/kline?symbol=${symbol}`;
+            }
+        }
+
+        // 记住并恢复选股页滚动位置
+        function rememberScroll() {
+            try { sessionStorage.setItem('selectionsScroll', String(window.scrollY || window.pageYOffset || 0)); } catch (e) {}
+        }
+
+        function getDefaultAction() {
+            try { return localStorage.getItem('defaultAction') || 'signals'; } catch (e) { return 'signals'; }
+        }
+
+        function setDefaultAction(val) {
+            try { localStorage.setItem('defaultAction', val); } catch (e) {}
+        }
+
+        // 行点击：按默认行为跳转（Ctrl/⌘ 取相反页）
+        function onRowClick(symbol) {
+            const prefer = getDefaultAction();
+            const goSignals = (event.ctrlKey || event.metaKey) ? (prefer === 'kline') : (prefer === 'signals');
+            rememberScroll();
+            if (goSignals) {
+                window.location.href = `/trading-signals?symbol=${symbol}`;
+            } else {
+                window.location.href = `/kline?symbol=${symbol}`;
+            }
+        }
+
+        // 显示错误
+        function showError(message) {
+            document.getElementById('errorMessage').innerHTML = `
+                <div class="error">❌ ${message}</div>
+            `;
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="11" class="loading">加载失败</td></tr>';
+        }
+
+        // 切换市场
+        function switchMarket(newMarket) {
+            window.location.href = `/selections?market=${newMarket}`;
+        }
+
+        // 导出CSV
+        function exportToCSV() {
+            const table = document.getElementById('tableBody');
+            if (!table || table.children.length === 0) {
+                alert('没有数据可导出');
+                return;
+            }
+
+            // 构建CSV内容
+            let csv = '排名,代码,名称,总分,技术指标,量价分析,趋势分析,形态识别,最新价,评级\n';
+
+            Array.from(table.children).forEach(row => {
+                const cells = row.children;
+                const rank = cells[0].textContent.replace(/[🥇🥈🥉]/g, '').trim();
+                const symbol = cells[1].textContent;
+                const name = cells[2].textContent;
+                const totalScore = cells[3].querySelector('.score').textContent;
+                const techScore = cells[4].textContent;
+                const volumeScore = cells[5].textContent;
+                const trendScore = cells[6].textContent;
+                const patternScore = cells[7].textContent;
+                const price = cells[8].textContent;
+                const rating = cells[9].textContent;
+
+                csv += `${rank},${symbol},${name},${totalScore},${techScore},${volumeScore},${trendScore},${patternScore},${price},${rating}\n`;
+            });
+
+            // 下载文件
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            const date = new Date().toISOString().split('T')[0];
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', `选股结果_${date}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 页面加载时自动加载数据
+        window.onload = function() {
+            // 更新页面标题
+            const marketNames = {
+                'HK': '港股',
+                'US': '美股',
+                'CN': 'A股'
+            };
+            const marketName = marketNames[market] || market;
+            document.getElementById('pageTitle').textContent = `🎯 智能选股结果 - ${marketName}`;
+            document.title = `选股结果 - ${marketName} - 长桥量化系统`;
+
+            // 恢复默认点击偏好
+            const action = getDefaultAction();
+            const sel = document.getElementById('defaultActionSelect');
+            if (sel) sel.value = action;
+
+            // 恢复滚动位置
+            try {
+                const saved = sessionStorage.getItem('selectionsScroll');
+                if (saved) {
+                    setTimeout(function(){ window.scrollTo(0, parseInt(saved, 10)); }, 0);
+                    sessionStorage.removeItem('selectionsScroll');
+                }
+            } catch (e) {}
+
+            loadSelections();
+        };
+    </script>
+</body>
+</html>
+

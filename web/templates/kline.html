@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K线图表 - 长桥量化系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-group label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .control-group input,
+        .control-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .control-group button {
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+        
+        .control-group button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .chart {
+            width: 100%;
+            height: 500px;
+        }
+        
+        .info-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .info-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .info-item .label {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        
+        .info-item .value {
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📈 K线图表分析</h1>
+            <div class="controls">
+                <div class="control-group">
+                    <label>股票代码:</label>
+                    <input type="text" id="symbolInput" placeholder="例如: 700.HK" value="700.HK">
+                </div>
+                <div class="control-group">
+                    <label>时间范围:</label>
+                    <select id="daysSelect">
+                        <option value="30">30天</option>
+                        <option value="60">60天</option>
+                        <option value="90" selected>90天</option>
+                        <option value="180">180天</option>
+                        <option value="365">1年</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <button onclick="loadKlineData()">加载数据</button>
+                    <button onclick="window.location.href='/'">返回首页</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="errorMessage"></div>
+        
+        <div class="chart-container">
+            <div id="klineChart" class="chart"></div>
+        </div>
+        
+        <div class="chart-container">
+            <div id="macdChart" class="chart" style="height: 250px;"></div>
+        </div>
+        
+        <div class="chart-container">
+            <div id="rsiChart" class="chart" style="height: 250px;"></div>
+        </div>
+        
+        <div class="chart-container">
+            <div id="kdjChart" class="chart" style="height: 250px;"></div>
+        </div>
+        
+        <div class="info-panel">
+            <h3 style="margin-bottom: 15px;">最新数据</h3>
+            <div id="latestInfo" class="info-grid">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let klineChart, macdChart, rsiChart, kdjChart;
+        
+        // 初始化图表
+        function initCharts() {
+            klineChart = echarts.init(document.getElementById('klineChart'));
+            macdChart = echarts.init(document.getElementById('macdChart'));
+            rsiChart = echarts.init(document.getElementById('rsiChart'));
+            kdjChart = echarts.init(document.getElementById('kdjChart'));
+        }
+        
+        // 加载K线数据
+        async function loadKlineData() {
+            const symbol = document.getElementById('symbolInput').value.trim();
+            const days = document.getElementById('daysSelect').value;
+            
+            if (!symbol) {
+                showError('请输入股票代码');
+                return;
+            }
+            
+            try {
+                document.getElementById('errorMessage').innerHTML = '';
+                document.getElementById('latestInfo').innerHTML = '<div class="loading">加载中...</div>';
+                
+                const response = await fetch(`/api/stock/${symbol}/kline?days=${days}`);
+                const result = await response.json();
+                
+                if (!result.success) {
+                    showError(result.error || '加载失败');
+                    return;
+                }
+                
+                const data = result.data;
+                renderCharts(data);
+                updateLatestInfo(data);
+                
+            } catch (error) {
+                showError('加载失败: ' + error.message);
+            }
+        }
+        
+        // 渲染图表
+        function renderCharts(data) {
+            const klineData = data.kline;
+            
+            // 准备数据
+            const dates = klineData.map(d => d.date);
+            const ohlc = klineData.map(d => [d.open, d.close, d.low, d.high]);
+            const volumes = klineData.map(d => d.volume);
+            const ma5 = klineData.map(d => d.ma5);
+            const ma10 = klineData.map(d => d.ma10);
+            const ma20 = klineData.map(d => d.ma20);
+            const ma60 = klineData.map(d => d.ma60);
+            
+            // K线图
+            const klineOption = {
+                title: {
+                    text: `${data.stock.name} (${data.stock.symbol})`,
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross'
+                    }
+                },
+                legend: {
+                    data: ['K线', 'MA5', 'MA10', 'MA20', 'MA60'],
+                    top: 30
+                },
+                grid: [
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '15%',
+                        height: '50%'
+                    },
+                    {
+                        left: '10%',
+                        right: '10%',
+                        top: '70%',
+                        height: '15%'
+                    }
+                ],
+                xAxis: [
+                    {
+                        type: 'category',
+                        data: dates,
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax'
+                    },
+                    {
+                        type: 'category',
+                        gridIndex: 1,
+                        data: dates,
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        axisTick: { show: false },
+                        splitLine: { show: false },
+                        axisLabel: { show: false },
+                        min: 'dataMin',
+                        max: 'dataMax'
+                    }
+                ],
+                yAxis: [
+                    {
+                        scale: true,
+                        splitArea: {
+                            show: true
+                        }
+                    },
+                    {
+                        scale: true,
+                        gridIndex: 1,
+                        splitNumber: 2,
+                        axisLabel: { show: false },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        splitLine: { show: false }
+                    }
+                ],
+                dataZoom: [
+                    {
+                        type: 'inside',
+                        xAxisIndex: [0, 1],
+                        start: 0,
+                        end: 100
+                    },
+                    {
+                        show: true,
+                        xAxisIndex: [0, 1],
+                        type: 'slider',
+                        top: '90%',
+                        start: 0,
+                        end: 100
+                    }
+                ],
+                series: [
+                    {
+                        name: 'K线',
+                        type: 'candlestick',
+                        data: ohlc,
+                        itemStyle: {
+                            color: '#ef5350',
+                            color0: '#26a69a',
+                            borderColor: '#ef5350',
+                            borderColor0: '#26a69a'
+                        }
+                    },
+                    {
+                        name: 'MA5',
+                        type: 'line',
+                        data: ma5,
+                        smooth: true,
+                        lineStyle: {
+                            opacity: 0.5
+                        }
+                    },
+                    {
+                        name: 'MA10',
+                        type: 'line',
+                        data: ma10,
+                        smooth: true,
+                        lineStyle: {
+                            opacity: 0.5
+                        }
+                    },
+                    {
+                        name: 'MA20',
+                        type: 'line',
+                        data: ma20,
+                        smooth: true,
+                        lineStyle: {
+                            opacity: 0.5
+                        }
+                    },
+                    {
+                        name: 'MA60',
+                        type: 'line',
+                        data: ma60,
+                        smooth: true,
+                        lineStyle: {
+                            opacity: 0.5
+                        }
+                    },
+                    {
+                        name: '成交量',
+                        type: 'bar',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        data: volumes
+                    }
+                ]
+            };
+            
+            klineChart.setOption(klineOption);
+            
+            // MACD图表
+            renderMACD(klineData, dates);
+            
+            // RSI图表
+            renderRSI(klineData, dates);
+            
+            // KDJ图表
+            renderKDJ(klineData, dates);
+        }
+        
+        // 渲染MACD
+        function renderMACD(klineData, dates) {
+            const macd = klineData.map(d => d.macd);
+            const signal = klineData.map(d => d.macd_signal);
+            const hist = klineData.map(d => d.macd_hist);
+            
+            const option = {
+                title: {
+                    text: 'MACD',
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ['MACD', 'Signal', 'Histogram'],
+                    top: 30
+                },
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: [
+                    {
+                        name: 'MACD',
+                        type: 'line',
+                        data: macd
+                    },
+                    {
+                        name: 'Signal',
+                        type: 'line',
+                        data: signal
+                    },
+                    {
+                        name: 'Histogram',
+                        type: 'bar',
+                        data: hist
+                    }
+                ]
+            };
+            
+            macdChart.setOption(option);
+        }
+        
+        // 渲染RSI
+        function renderRSI(klineData, dates) {
+            const rsi = klineData.map(d => d.rsi);
+            
+            const option = {
+                title: {
+                    text: 'RSI',
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100
+                },
+                series: [
+                    {
+                        name: 'RSI',
+                        type: 'line',
+                        data: rsi,
+                        markLine: {
+                            data: [
+                                { yAxis: 70, lineStyle: { color: 'red' } },
+                                { yAxis: 30, lineStyle: { color: 'green' } }
+                            ]
+                        }
+                    }
+                ]
+            };
+            
+            rsiChart.setOption(option);
+        }
+        
+        // 渲染KDJ
+        function renderKDJ(klineData, dates) {
+            const k = klineData.map(d => d.kdj_k);
+            const d = klineData.map(d => d.kdj_d);
+            const j = klineData.map(d => d.kdj_j);
+            
+            const option = {
+                title: {
+                    text: 'KDJ',
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ['K', 'D', 'J'],
+                    top: 30
+                },
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dates
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: [
+                    {
+                        name: 'K',
+                        type: 'line',
+                        data: k
+                    },
+                    {
+                        name: 'D',
+                        type: 'line',
+                        data: d
+                    },
+                    {
+                        name: 'J',
+                        type: 'line',
+                        data: j
+                    }
+                ]
+            };
+            
+            kdjChart.setOption(option);
+        }
+        
+        // 更新最新信息
+        function updateLatestInfo(data) {
+            const latest = data.kline[data.kline.length - 1];
+            
+            const html = `
+                <div class="info-item">
+                    <div class="label">日期</div>
+                    <div class="value">${latest.date}</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">收盘价</div>
+                    <div class="value">${latest.close?.toFixed(2) || '-'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">MA5</div>
+                    <div class="value">${latest.ma5?.toFixed(2) || '-'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">MA20</div>
+                    <div class="value">${latest.ma20?.toFixed(2) || '-'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">RSI</div>
+                    <div class="value">${latest.rsi?.toFixed(2) || '-'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">MACD</div>
+                    <div class="value">${latest.macd?.toFixed(4) || '-'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">KDJ-K</div>
+                    <div class="value">${latest.kdj_k?.toFixed(2) || '-'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">KDJ-D</div>
+                    <div class="value">${latest.kdj_d?.toFixed(2) || '-'}</div>
+                </div>
+            `;
+            
+            document.getElementById('latestInfo').innerHTML = html;
+        }
+        
+        // 显示错误
+        function showError(message) {
+            document.getElementById('errorMessage').innerHTML = `
+                <div class="error">❌ ${message}</div>
+            `;
+        }
+        
+        // 初始化
+        window.onload = function() {
+            initCharts();
+
+            // 从URL参数获取股票代码
+            const urlParams = new URLSearchParams(window.location.search);
+            const symbol = urlParams.get('symbol');
+            if (symbol) {
+                document.getElementById('symbolInput').value = symbol;
+            }
+
+            loadKlineData();
+        };
+        
+        // 响应式调整
+        window.addEventListener('resize', function() {
+            klineChart.resize();
+            macdChart.resize();
+            rsiChart.resize();
+            kdjChart.resize();
+        });
+    </script>
+</body>
+</html>
+

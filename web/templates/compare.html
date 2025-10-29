@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票对比 - 长桥量化系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .controls {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .input-group input {
+            flex: 1;
+            min-width: 150px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .input-group button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .input-group button:hover {
+            opacity: 0.9;
+        }
+        
+        .selected-stocks {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .stock-tag {
+            padding: 8px 15px;
+            background: #e9ecef;
+            border-radius: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stock-tag .remove {
+            cursor: pointer;
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 20px;
+        }
+        
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .chart {
+            width: 100%;
+            height: 400px;
+        }
+        
+        .comparison-table {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .best {
+            background: #d4edda;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 股票对比分析</h1>
+            <p>对比多只股票的技术指标和评分</p>
+        </div>
+        
+        <div class="controls">
+            <div class="input-group">
+                <input type="text" id="symbolInput" placeholder="输入股票代码，如: 0700.HK" />
+                <button onclick="addStock()">➕ 添加股票</button>
+                <button onclick="compareStocks()">🔍 开始对比</button>
+                <button onclick="clearAll()">🗑️ 清空</button>
+                <button onclick="window.location.href='/'">🏠 返回首页</button>
+            </div>
+            <div class="selected-stocks" id="selectedStocks"></div>
+        </div>
+        
+        <div class="comparison-table" id="comparisonTable" style="display: none;">
+            <h3>📋 对比结果</h3>
+            <table id="dataTable"></table>
+        </div>
+        
+        <div class="charts-grid" id="chartsGrid"></div>
+    </div>
+    
+    <script>
+        let selectedStocks = [];
+        let stocksData = {};
+        
+        // 添加股票
+        function addStock() {
+            const input = document.getElementById('symbolInput');
+            const symbol = input.value.trim().toUpperCase();
+            
+            if (!symbol) {
+                alert('请输入股票代码');
+                return;
+            }
+            
+            if (selectedStocks.includes(symbol)) {
+                alert('该股票已添加');
+                return;
+            }
+            
+            if (selectedStocks.length >= 5) {
+                alert('最多对比5只股票');
+                return;
+            }
+            
+            selectedStocks.push(symbol);
+            input.value = '';
+            updateSelectedStocks();
+        }
+        
+        // 移除股票
+        function removeStock(symbol) {
+            selectedStocks = selectedStocks.filter(s => s !== symbol);
+            delete stocksData[symbol];
+            updateSelectedStocks();
+        }
+        
+        // 更新已选股票显示
+        function updateSelectedStocks() {
+            const container = document.getElementById('selectedStocks');
+            container.innerHTML = selectedStocks.map(symbol => `
+                <div class="stock-tag">
+                    <span>${symbol}</span>
+                    <span class="remove" onclick="removeStock('${symbol}')">✕</span>
+                </div>
+            `).join('');
+        }
+        
+        // 清空所有
+        function clearAll() {
+            selectedStocks = [];
+            stocksData = {};
+            updateSelectedStocks();
+            document.getElementById('comparisonTable').style.display = 'none';
+            document.getElementById('chartsGrid').innerHTML = '';
+        }
+        
+        // 对比股票
+        async function compareStocks() {
+            if (selectedStocks.length < 2) {
+                alert('请至少选择2只股票进行对比');
+                return;
+            }
+            
+            // 获取数据
+            for (const symbol of selectedStocks) {
+                if (!stocksData[symbol]) {
+                    await fetchStockData(symbol);
+                }
+            }
+            
+            // 显示对比表格
+            renderComparisonTable();
+            
+            // 显示对比图表
+            renderCharts();
+        }
+        
+        // 获取股票数据
+        async function fetchStockData(symbol) {
+            try {
+                const response = await fetch(`/api/stock/${symbol}/kline?days=90`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    stocksData[symbol] = result.data;
+                } else {
+                    alert(`获取 ${symbol} 数据失败: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`获取 ${symbol} 数据失败: ${error.message}`);
+            }
+        }
+        
+        // 渲染对比表格
+        function renderComparisonTable() {
+            const table = document.getElementById('dataTable');
+            const container = document.getElementById('comparisonTable');
+            
+            // 构建表格
+            let html = '<thead><tr><th>指标</th>';
+            selectedStocks.forEach(symbol => {
+                html += `<th>${symbol}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            // 添加各项指标
+            const metrics = [
+                { key: 'close', label: '最新价' },
+                { key: 'ma5', label: 'MA5' },
+                { key: 'ma10', label: 'MA10' },
+                { key: 'ma20', label: 'MA20' },
+                { key: 'rsi', label: 'RSI' },
+                { key: 'macd', label: 'MACD' },
+                { key: 'kdj_k', label: 'KDJ-K' },
+                { key: 'kdj_d', label: 'KDJ-D' }
+            ];
+            
+            metrics.forEach(metric => {
+                html += `<tr><td>${metric.label}</td>`;
+                selectedStocks.forEach(symbol => {
+                    const data = stocksData[symbol];
+                    if (data && data.kline.length > 0) {
+                        const latest = data.kline[data.kline.length - 1];
+                        const value = latest[metric.key];
+                        html += `<td>${value ? value.toFixed(2) : '-'}</td>`;
+                    } else {
+                        html += '<td>-</td>';
+                    }
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody>';
+            table.innerHTML = html;
+            container.style.display = 'block';
+        }
+        
+        // 渲染图表
+        function renderCharts() {
+            const grid = document.getElementById('chartsGrid');
+            grid.innerHTML = `
+                <div class="chart-card">
+                    <h3>价格走势对比</h3>
+                    <div id="priceChart" class="chart"></div>
+                </div>
+                <div class="chart-card">
+                    <h3>RSI对比</h3>
+                    <div id="rsiChart" class="chart"></div>
+                </div>
+            `;
+            
+            renderPriceChart();
+            renderRSIChart();
+        }
+        
+        // 渲染价格图表
+        function renderPriceChart() {
+            const chart = echarts.init(document.getElementById('priceChart'));
+            
+            const series = selectedStocks.map(symbol => {
+                const data = stocksData[symbol];
+                if (!data) return null;
+                
+                return {
+                    name: symbol,
+                    type: 'line',
+                    data: data.kline.map(k => [k.date, k.close]),
+                    smooth: true
+                };
+            }).filter(s => s);
+            
+            chart.setOption({
+                tooltip: { trigger: 'axis' },
+                legend: { data: selectedStocks },
+                xAxis: { type: 'time' },
+                yAxis: { type: 'value' },
+                series: series
+            });
+        }
+        
+        // 渲染RSI图表
+        function renderRSIChart() {
+            const chart = echarts.init(document.getElementById('rsiChart'));
+            
+            const series = selectedStocks.map(symbol => {
+                const data = stocksData[symbol];
+                if (!data) return null;
+                
+                return {
+                    name: symbol,
+                    type: 'line',
+                    data: data.kline.map(k => [k.date, k.rsi]),
+                    smooth: true
+                };
+            }).filter(s => s);
+            
+            chart.setOption({
+                tooltip: { trigger: 'axis' },
+                legend: { data: selectedStocks },
+                xAxis: { type: 'time' },
+                yAxis: { type: 'value', min: 0, max: 100 },
+                series: series
+            });
+        }
+    </script>
+</body>
+</html>
+

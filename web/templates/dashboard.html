@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>长桥证券量化交易系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #10b981;
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .card h2::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #667eea;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+        
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .card ul {
+            list-style: none;
+            color: #666;
+        }
+        
+        .card ul li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .card ul li:last-child {
+            border-bottom: none;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+        }
+        
+        .api-info {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        
+        .api-info h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .api-info p {
+            color: #856404;
+            font-size: 14px;
+        }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 长桥证券量化交易系统</h1>
+            <p>基于LongPort OpenAPI的港股、美股量化分析平台</p>
+            <span class="status" id="status">● 系统运行中</span>
+        </div>
+        
+        <div class="cards">
+            <div class="card">
+                <h2>📊 数据采集</h2>
+                <p>通过长桥证券API获取实时和历史行情数据</p>
+                <ul>
+                    <li>✓ 港股、美股、A股数据</li>
+                    <li>✓ 实时行情推送</li>
+                    <li>✓ 历史K线数据</li>
+                    <li>✓ 股票基本信息</li>
+                </ul>
+                <br>
+                <button class="btn" onclick="testAPI()">测试API连接</button>
+            </div>
+            
+            <div class="card">
+                <h2>📈 技术分析</h2>
+                <p>20+技术指标和形态识别</p>
+                <ul>
+                    <li>✓ MACD、KDJ、RSI</li>
+                    <li>✓ 布林带、ATR</li>
+                    <li>✓ 均线系统</li>
+                    <li>✓ K线形态识别</li>
+                </ul>
+                <br>
+                <a href="/api/stocks" class="btn">查看股票列表</a>
+            </div>
+            
+            <div class="card">
+                <h2>🎯 智能选股</h2>
+                <p>多维度评分系统，精选优质股票</p>
+                <ul>
+                    <li>✓ 技术指标评分 (30%)</li>
+                    <li>✓ 量价分析评分 (25%)</li>
+                    <li>✓ 趋势分析评分 (25%)</li>
+                    <li>✓ 形态识别评分 (20%)</li>
+                </ul>
+                <br>
+                <a href="/api/selections" class="btn">查看选股结果</a>
+            </div>
+            
+            <div class="card">
+                <h2>🔄 回测系统</h2>
+                <p>验证策略历史表现</p>
+                <ul>
+                    <li>✓ 收益率分析</li>
+                    <li>✓ 风险指标计算</li>
+                    <li>✓ 交易统计</li>
+                    <li>✓ 可视化报告</li>
+                </ul>
+                <br>
+                <button class="btn" onclick="alert('回测功能开发中...')">运行回测</button>
+            </div>
+        </div>
+        
+        <div class="card api-info">
+            <h3>⚠️ API配置提示</h3>
+            <p>请确保已在 <code>config/api_config.yaml</code> 中配置长桥证券API密钥：</p>
+            <ul>
+                <li>1. 访问 <a href="https://open.longportapp.com" target="_blank">https://open.longportapp.com</a> 申请API权限</li>
+                <li>2. 获取 App Key、App Secret 和 Access Token</li>
+                <li>3. 配置到 api_config.yaml 或设置环境变量</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>© 2025 长桥证券量化交易系统 | Powered by LongPort OpenAPI</p>
+        </div>
+    </div>
+    
+    <script>
+        // 测试API连接
+        async function testAPI() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    alert('✅ API连接正常！\n\n' + data.message);
+                } else {
+                    alert('❌ API连接失败！');
+                }
+            } catch (error) {
+                alert('❌ API连接失败！\n\n' + error.message);
+            }
+        }
+        
+        // 检查系统状态
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                const statusEl = document.getElementById('status');
+                if (data.status === 'ok') {
+                    statusEl.textContent = '● 系统运行中';
+                    statusEl.style.background = '#10b981';
+                } else {
+                    statusEl.textContent = '● 系统异常';
+                    statusEl.style.background = '#ef4444';
+                }
+            } catch (error) {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = '● 连接失败';
+                statusEl.style.background = '#ef4444';
+            }
+        }
+        
+        // 页面加载时检查状态
+        checkStatus();
+        
+        // 每30秒检查一次状态
+        setInterval(checkStatus, 30000);
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,142 @@
+# 邮件配置示例文件
+# 请根据您使用的邮箱服务商选择对应的配置，并复制到 config.yaml 中
+
+# ============================================
+# Gmail 配置示例
+# ============================================
+# 注意：Gmail需要开启"两步验证"并生成"应用专用密码"
+# 生成步骤：
+# 1. 访问 https://myaccount.google.com/security
+# 2. 开启"两步验证"
+# 3. 在"应用专用密码"中生成新密码
+# 4. 使用生成的16位密码替换下面的 your_app_password
+
+gmail_example:
+  notification:
+    enabled: true
+    email:
+      enabled: true
+      smtp_server: smtp.gmail.com
+      smtp_port: 587
+      username: your_email@gmail.com
+      password: your_app_password  # 使用应用专用密码，不是登录密码
+      from_addr: your_email@gmail.com
+      to_addrs:
+        - recipient@example.com
+
+# ============================================
+# QQ邮箱 配置示例
+# ============================================
+# 注意：QQ邮箱需要开启SMTP服务并使用"授权码"
+# 生成步骤：
+# 1. 登录QQ邮箱网页版
+# 2. 设置 -> 账户 -> POP3/IMAP/SMTP/Exchange/CardDAV/CalDAV服务
+# 3. 开启"POP3/SMTP服务"或"IMAP/SMTP服务"
+# 4. 生成授权码
+# 5. 使用授权码替换下面的 your_authorization_code
+
+qq_example:
+  notification:
+    enabled: true
+    email:
+      enabled: true
+      smtp_server: smtp.qq.com
+      smtp_port: 587
+      username: your_qq_number@qq.com
+      password: your_authorization_code  # 使用授权码，不是QQ密码
+      from_addr: your_qq_number@qq.com
+      to_addrs:
+        - recipient@example.com
+
+# ============================================
+# 163邮箱 配置示例
+# ============================================
+# 注意：163邮箱需要开启SMTP服务并使用"授权码"
+# 生成步骤：
+# 1. 登录163邮箱网页版
+# 2. 设置 -> POP3/SMTP/IMAP
+# 3. 开启"SMTP服务"
+# 4. 设置授权码
+# 5. 使用授权码替换下面的 your_authorization_code
+
+163_example:
+  notification:
+    enabled: true
+    email:
+      enabled: true
+      smtp_server: smtp.163.com
+      smtp_port: 25  # 或使用 465（SSL）
+      username: your_email@163.com
+      password: your_authorization_code  # 使用授权码
+      from_addr: your_email@163.com
+      to_addrs:
+        - recipient@example.com
+
+# ============================================
+# 126邮箱 配置示例
+# ============================================
+126_example:
+  notification:
+    enabled: true
+    email:
+      enabled: true
+      smtp_server: smtp.126.com
+      smtp_port: 25  # 或使用 465（SSL）
+      username: your_email@126.com
+      password: your_authorization_code
+      from_addr: your_email@126.com
+      to_addrs:
+        - recipient@example.com
+
+# ============================================
+# Outlook/Hotmail 配置示例
+# ============================================
+outlook_example:
+  notification:
+    enabled: true
+    email:
+      enabled: true
+      smtp_server: smtp-mail.outlook.com
+      smtp_port: 587
+      username: your_email@outlook.com  # 或 @hotmail.com
+      password: your_password
+      from_addr: your_email@outlook.com
+      to_addrs:
+        - recipient@example.com
+
+# ============================================
+# 企业邮箱 配置示例
+# ============================================
+# 请咨询您的IT部门获取SMTP服务器地址和端口
+enterprise_example:
+  notification:
+    enabled: true
+    email:
+      enabled: true
+      smtp_server: smtp.your-company.com
+      smtp_port: 587  # 或 25, 465
+      username: your_email@your-company.com
+      password: your_password
+      from_addr: your_email@your-company.com
+      to_addrs:
+        - recipient@example.com
+
+# ============================================
+# 常见问题
+# ============================================
+# 
+# Q1: 邮件发送失败，提示"Authentication failed"
+# A1: 检查用户名和密码是否正确，Gmail/QQ/163等需要使用授权码而非登录密码
+#
+# Q2: 邮件发送失败，提示"Connection refused"
+# A2: 检查SMTP服务器地址和端口是否正确，检查网络连接
+#
+# Q3: 邮件发送成功但收不到
+# A3: 检查垃圾邮件文件夹，或将发件人添加到白名单
+#
+# Q4: Gmail提示"Less secure app access"
+# A4: Gmail已不再支持"不够安全的应用"，必须使用"应用专用密码"
+#
+# Q5: 如何测试邮件配置？
+# A5: 运行 python scripts/monitor_money_flow.py --test-email
+
